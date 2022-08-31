@@ -1,5 +1,6 @@
 import 'dart:async';
 
+import 'package:collection/collection.dart';
 import 'package:dio/dio.dart';
 import 'package:fresh_dio/fresh_dio.dart';
 
@@ -150,7 +151,19 @@ Example:
   Future<Response<dynamic>> _tryRefresh(Response<dynamic> response) async {
     late final T refreshedToken;
     try {
-      refreshedToken = await _refreshToken(await token, _httpClient);
+      final tokenValue = await token;
+      final requestHeader = response.requestOptions.headers;
+      final updatedHeader = Map<String, dynamic>.of(requestHeader)
+        ..addAll(
+          tokenValue == null ? <String, String>{} : _tokenHeader(tokenValue),
+        );
+      final isEqual = const MapEquality<String, dynamic>()
+          .equals(updatedHeader, requestHeader);
+      if (!isEqual && tokenValue != null) {
+        refreshedToken = tokenValue;
+      } else {
+        refreshedToken = await _refreshToken(tokenValue, _httpClient);
+      }
     } on RevokeTokenException catch (error) {
       await clearToken();
       throw DioException(
